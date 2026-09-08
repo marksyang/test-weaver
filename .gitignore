@@ -25,3 +25,9 @@ scripts/node_modules/
 # IDE / 工具（個人設定，不進 repo）
 .idea/
 .pi/
+
+# Coverage 產物（make ci / CI 產生，不進 repo）
+.coverage
+coverage.xml
+coverage/
+htmlcov/

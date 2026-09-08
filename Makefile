@@ -19,10 +19,10 @@ install:
 test: test-backend test-frontend
 
 test-backend:
-	$(PYTHON) -m pytest backend/tests -q
+	$(PYTHON) -m pytest backend/tests -q --cov=app --cov-report=term-missing --cov-report=xml --cov-fail-under=82
 
 test-frontend:
-	cd frontend && npx vitest run
+	cd frontend && npx vitest run --coverage
 
 typecheck:
 	cd frontend && npx tsc --noEmit
@@ -31,4 +31,4 @@ build:
 	cd frontend && npm run build
 
 ci: typecheck test-backend test-frontend build
-	@echo "✅ CI 全綠（typecheck + 後端 pytest + 前端 vitest + build）"
+	@echo "✅ CI 全綠（typecheck + 後端 pytest/cov≥82% + 前端 vitest/cov + build）"

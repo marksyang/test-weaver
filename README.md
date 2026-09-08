@@ -244,6 +244,6 @@ GitHub Actions：`.github/workflows/ci.yml` — push / PR 時跑兩個 job（`Ba
 - **P7 · 治理細化**：完整 RBAC（端點級角色控制）、審批流程、JWT refresh / 登出失效（revoke）
 - **P7 · 稽核增強**：欄位級 before/after diff、稽核保留期與匯出
 - **P8 · 產品化/效能**：ECharts code-splitting（`echarts/core`，只註冊 bar/pie）、MySQL 連線池調校、輸入驗證 + 限流
-- **P8 · 測試/CI**：覆蓋率門檻（pytest-cov / vitest coverage）+ artifact 上傳、前端頁面級測試（RTL 流程）
+- **P8 · 測試/CI**：✅ 覆蓋率門檻（後端 `pytest-cov` ≥82% / 前端 vitest ratchet）+ CI coverage artifact；剩餘：前端頁面級 RTL 元件測試（拉高前端覆蓋率，現 ~9.4%）
 - **P9 · 生產加固**：CORS 白名單、HTTPS、備份策略、密鑰/Secrets 管理
 - **可選**：RAG 檢索回饋（點擊/評分）、報表排程與 email/PDF 匯出、跨團隊共用專案
