@@ -41,6 +41,15 @@ def create_app() -> FastAPI:
                 ensure_default_admin()
             except Exception:  # noqa: BLE001
                 pass
+        # 確保預設團隊 + membership（多團隊 v1.1 T1；冪等，失敗不擋啟動）
+        from .core.db import session_scope
+        from .services.team_service import seed_default_teams
+
+        try:
+            with session_scope() as db:
+                seed_default_teams(db)
+        except Exception:  # noqa: BLE001
+            pass
         yield
 
     app = FastAPI(title="TestWeaver API", version="1.0", lifespan=lifespan)

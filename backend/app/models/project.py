@@ -23,6 +23,10 @@ class Project(Base):
         String(32), nullable=False, default="active", server_default="active"
     )
     owner_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # 多團隊（v1.1 T1）：所屬團隊；NULL = legacy 未指派（T1 對所有人可見，T2 會指派團隊後收緊）
+    team_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("team.id"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now(), onupdate=func.now()

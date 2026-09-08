@@ -57,3 +57,16 @@ def me(current: Optional[User] = Depends(get_current_user)):
     if current is None:
         return AuthUserOut(id=0, username="anonymous", role="admin")
     return _user_out(current)
+
+
+@router.get("/me/teams")
+def my_teams(
+    current: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """回傳當前使用者所在團隊 [{id, name, role}]（多團隊 v1.1 T1）。AUTH 未啟用 → []。"""
+    if current is None:
+        return []
+    from ...services.team_service import user_team_roles
+
+    return user_team_roles(db, current)

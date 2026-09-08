@@ -12,11 +12,18 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from ...api.deps import get_current_user
 from ...core.db import get_db
 from ...models.project import Project, SpecFile
 from ...models.platform import TestItemCategory
 from ...models.test_item import TestItem, TestItemPlatformSync
+from ...models.user import User
 from ...services.spec_service import extract_text
+from ...services.team_service import (
+    accessible_team_ids,
+    get_accessible_project,
+    visible_project_query,
+)
 
 router = APIRouter(prefix="/projects", tags=["Projects/M1"])
 
@@ -25,6 +32,7 @@ router = APIRouter(prefix="/projects", tags=["Projects/M1"])
 class ProjectCreate(BaseModel):
     name: str = Field(..., min_length=1)
     description: Optional[str] = None
+    team_id: Optional[int] = None
 
 
 class ProjectOut(BaseModel):
@@ -32,6 +40,7 @@ class ProjectOut(BaseModel):
     name: str
     description: Optional[str] = None
     status: str
+    team_id: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -72,13 +81,24 @@ def _enqueue_generate(spec_file_id: int) -> str:
 
 # ---------- 專案 ----------
 @router.get("", response_model=list[ProjectOut])
-def list_projects(db: Session = Depends(get_db)):
-    return db.query(Project).order_by(Project.id.desc()).all()
+def list_projects(
+    current_user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return visible_project_query(db, current_user).order_by(Project.id.desc()).all()
 
 
 @router.post("", response_model=ProjectOut)
-def create_project(body: ProjectCreate, db: Session = Depends(get_db)):
-    p = Project(name=body.name, description=body.description)
+def create_project(
+    body: ProjectCreate,
+    current_user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    team_id = body.team_id
+    if team_id is not None and current_user is not None:
+        if team_id not in accessible_team_ids(db, current_user):
+            raise HTTPException(403, "cannot create a project in a team you are not a member of")
+    p = Project(name=body.name, description=body.description, team_id=team_id)
     db.add(p)
     db.commit()
     db.refresh(p)
@@ -86,8 +106,12 @@ def create_project(body: ProjectCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/{project_id}", response_model=ProjectOut)
-def get_project(project_id: int, db: Session = Depends(get_db)):
-    p = db.get(Project, project_id)
+def get_project(
+    project_id: int,
+    current_user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    p = get_accessible_project(db, current_user, project_id)
     if p is None:
         raise HTTPException(404, "project not found")
     return p
