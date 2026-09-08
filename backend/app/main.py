@@ -27,6 +27,7 @@ from .api.v1.tasks import router as tasks_router
 from .api.v1.auth import router as auth_router
 from .api.v1.audit import router as audit_router
 from .api.v1.users import router as users_router
+from .api.v1.teams import router as teams_router
 
 
 def create_app() -> FastAPI:
@@ -88,6 +89,8 @@ def create_app() -> FastAPI:
         prefix="/api/v1",
         dependencies=auth_deps + [Depends(require_roles("admin"))],
     )
+    # 多團隊（v1.1 T2）：team CRUD + members；端點內用 get_required_user（需真實用戶）
+    app.include_router(teams_router, prefix="/api/v1", dependencies=auth_deps)
 
     return app
 

@@ -14,7 +14,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..models.project import Project
-from ..models.team import DEFAULT_TEAM_NAME, Team, TeamMember
+from ..models.team import DEFAULT_TEAM_NAME, TEAM_ROLES, Team, TeamMember
 from ..models.user import User
 
 
@@ -115,3 +115,106 @@ def get_accessible_project(
     if p.team_id in accessible_team_ids(db, user):
         return p
     return None
+
+
+# ================= 多團隊 T2：team CRUD + members + 團隊級 RBAC =================
+class TeamError(Exception):
+    """團隊業務錯誤（由 API 轉為對應 4xx）。"""
+
+    def __init__(self, status_code: int, detail: str):
+        super().__init__(detail)
+        self.status_code = status_code
+        self.detail = detail
+
+
+def is_platform_admin(user: Optional[User]) -> bool:
+    return user is not None and user.role == "admin"
+
+
+def get_membership(db: Session, team_id: int, user_id: int) -> Optional[TeamMember]:
+    return db.query(TeamMember).filter_by(team_id=team_id, user_id=user_id).first()
+
+
+def get_accessible_team(db: Session, user: Optional[User], team_id: int) -> Optional[Team]:
+    """member 或 platform admin → team；否則 None（API→404）。"""
+    team = db.get(Team, team_id)
+    if team is None or user is None:
+        return None
+    if is_platform_admin(user):
+        return team
+    return team if get_membership(db, team_id, user.id) is not None else None
+
+
+def can_manage_team(db: Session, user: Optional[User], team_id: int) -> bool:
+    """team owner 或 platform admin。"""
+    if is_platform_admin(user):
+        return True
+    m = get_membership(db, team_id, user.id)
+    return bool(m and m.role == "owner")
+
+
+def _count_owners(db: Session, team_id: int) -> int:
+    return db.query(TeamMember).filter_by(team_id=team_id, role="owner").count()
+
+
+def create_team(db: Session, name: str, description: Optional[str], owner_user: User) -> Team:
+    name = (name or "").strip()
+    if not name:
+        raise TeamError(422, "team name required")
+    if db.query(Team).filter_by(name=name).first() is not None:
+        raise TeamError(409, "team name already exists")
+    team = Team(name=name, description=description)
+    db.add(team)
+    db.flush()
+    db.add(TeamMember(team_id=team.id, user_id=owner_user.id, role="owner"))
+    db.commit()
+    db.refresh(team)
+    return team
+
+
+def list_members(db: Session, team_id: int) -> list[dict]:
+    out: list[dict] = []
+    for m in db.query(TeamMember).filter_by(team_id=team_id).order_by(TeamMember.id).all():
+        u = db.get(User, m.user_id)
+        out.append({"user_id": m.user_id, "username": u.username if u else "?", "role": m.role})
+    return out
+
+
+def add_member(db: Session, team_id: int, user_id: int, role: str) -> TeamMember:
+    if role not in TEAM_ROLES:
+        raise TeamError(422, f"invalid team role: {role}")
+    if db.get(User, user_id) is None:
+        raise TeamError(404, "user not found")
+    m = get_membership(db, team_id, user_id)
+    if m is None:
+        m = TeamMember(team_id=team_id, user_id=user_id, role=role)
+        db.add(m)
+    else:
+        m.role = role  # 已是成員 → 更新角色
+    db.commit()
+    db.refresh(m)
+    return m
+
+
+def set_member_role(db: Session, team_id: int, user_id: int, role: str) -> TeamMember:
+    if role not in TEAM_ROLES:
+        raise TeamError(422, f"invalid team role: {role}")
+    m = get_membership(db, team_id, user_id)
+    if m is None:
+        raise TeamError(404, "member not found")
+    if m.role == "owner" and role != "owner" and _count_owners(db, team_id) == 1:
+        raise TeamError(400, "cannot demote the last owner of a team")
+    m.role = role
+    db.commit()
+    db.refresh(m)
+    return m
+
+
+def remove_member(db: Session, team_id: int, user_id: int) -> None:
+    m = get_membership(db, team_id, user_id)
+    if m is None:
+        raise TeamError(404, "member not found")
+    if m.role == "owner" and _count_owners(db, team_id) == 1:
+        raise TeamError(400, "cannot remove the last owner of a team")
+    db.delete(m)
+    db.commit()

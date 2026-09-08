@@ -65,3 +65,15 @@ def require_roles(*roles: str) -> Callable[..., Optional[User]]:
         return current
 
     return _dep
+
+
+def get_required_user(
+    current: Optional[User] = Depends(get_current_user),
+) -> User:
+    """同 get_current_user，但要求「真實」使用者：AUTH 未啟用（None）→ 401。
+
+    用於團隊管理等需要明確身份的操作（多團隊 v1.1 T2）。
+    """
+    if current is None:
+        raise _unauthorized("authentication required")
+    return current

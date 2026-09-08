@@ -8,10 +8,13 @@ import {
   ProfileOutlined,
   SearchOutlined,
   SettingOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext';
 import { allowedPathsForRole } from './auth/roles';
+import { useTeams } from './team/TeamContext';
+import TeamSwitcher from './components/TeamSwitcher';
 import RagPage from './pages/RagPage';
 import PlanPage from './pages/PlanPage';
 import SelfTestPage from './pages/SelfTestPage';
@@ -20,6 +23,7 @@ import PlatformPage from './pages/PlatformPage';
 import ReportPage from './pages/ReportPage';
 import LoginPage from './pages/LoginPage';
 import SettingsPage from './pages/SettingsPage';
+import TeamsPage from './pages/TeamsPage';
 
 const { Sider, Header, Content } = Layout;
 
@@ -38,6 +42,7 @@ const ALL_ITEMS: NonNullable<MenuProps['items']> = [
   { key: '/report', icon: <BarChartOutlined />, label: '報表 / AI' },
   { key: '/platform', icon: <AppstoreOutlined />, label: '共通類別平台' },
   { key: '/settings', icon: <SettingOutlined />, label: '設定' },
+  { key: '/teams', icon: <TeamOutlined />, label: '團隊管理' },
 ];
 
 const TITLES: Record<string, string> = {
@@ -48,17 +53,18 @@ const TITLES: Record<string, string> = {
   '/report': '報表 / AI',
   '/platform': '共通類別平台',
   '/settings': '設定',
+  '/teams': '團隊管理',
 };
-
-function menuForRole(role: string): NonNullable<MenuProps['items']> {
-  const allowed = allowedPathsForRole(role);
-  return ALL_ITEMS.filter((i) => !!i && 'key' in i && allowed.includes(i.key as string));
-}
 
 function Shell({ role }: { role: string }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { canManage } = useTeams();
+
+  const allowed = new Set(allowedPathsForRole(role));
+  if (canManage) allowed.add('/teams');
+  const items = ALL_ITEMS.filter((i) => !!i && 'key' in i && allowed.has(i.key as string));
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -70,7 +76,7 @@ function Shell({ role }: { role: string }) {
         <Menu
           mode="inline"
           selectedKeys={[location.pathname]}
-          items={menuForRole(role)}
+          items={items}
           onClick={({ key }) => navigate(key)}
         />
       </Sider>
@@ -80,6 +86,7 @@ function Shell({ role }: { role: string }) {
             {TITLES[location.pathname] ?? 'TestWeaver'}
           </Typography.Title>
           <Space2>
+            <TeamSwitcher />
             <Typography.Text type="secondary">
               {user?.username} · {role}
             </Typography.Text>
@@ -97,6 +104,7 @@ function Shell({ role }: { role: string }) {
             <Route path="/report" element={<ReportPage />} />
             <Route path="/platform" element={<PlatformPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/teams" element={<TeamsPage />} />
             <Route path="/" element={<Navigate to="/rag" replace />} />
             <Route path="*" element={<Navigate to="/rag" replace />} />
           </Routes>
