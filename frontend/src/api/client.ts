@@ -41,5 +41,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     if (res.status === 401) _onUnauthorized();
     throw new Error(`API ${res.status}: ${await res.text()}`);
   }
-  return (await res.json()) as T;
+  if (res.status === 204) return undefined as T; // 無回應體（如 DELETE）
+  const text = await res.text();
+  return (text ? (JSON.parse(text) as T) : (undefined as T));
 }
