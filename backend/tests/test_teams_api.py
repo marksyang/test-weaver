@@ -14,6 +14,7 @@ from app.core.db import get_db
 from app.core.security import create_token
 from app.main import create_app
 from app.models.base import Base
+from app.models.audit import AuditLog
 from app.models.team import Team, TeamMember
 from app.services.auth_service import make_user
 
@@ -164,3 +165,81 @@ def test_auth_required(env):
     # AUTH_ENABLED=true 但無 token → 401
     r = env["client"].post("/api/v1/teams", json={"name": "X"})
     assert r.status_code == 401
+
+
+# ---------- T3：團隊刪除 + 稽核 team_id ----------
+def test_delete_team_admin_only(env):
+    # boss 是 owner（非 platform admin）→ 403
+    r = env["client"].delete(f"/api/v1/teams/{env['tid']}", headers=env["boss"])
+    assert r.status_code == 403
+
+
+def test_delete_team_blocked_if_has_projects(env):
+    c = env["client"]
+    p = c.post("/api/v1/projects", json={"name": "proj", "team_id": env["tid"]}, headers=env["boss"])
+    assert p.status_code == 200
+    r = c.delete(f"/api/v1/teams/{env['tid']}", headers=env["root"])  # admin
+    assert r.status_code == 409
+
+
+def test_delete_empty_team_by_admin(env):
+    c = env["client"]
+    nt = c.post("/api/v1/teams", json={"name": "Empty Team"}, headers=env["bob"])
+    assert nt.status_code == 201
+    nid = nt.json()["id"]
+    r = c.delete(f"/api/v1/teams/{nid}", headers=env["root"])  # admin 刪空團隊
+    assert r.status_code == 204
+    assert c.get(f"/api/v1/teams/{nid}", headers=env["root"]).status_code == 404
+
+
+@pytest.fixture()
+def audit_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("AUDIT_ENABLED", "true")
+    monkeypatch.setenv("AUTH_ENABLED", "true")
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'team_audit.db'}", connect_args={"check_same_thread": False}
+    )
+    Base.metadata.create_all(engine)
+    TS = sessionmaker(bind=engine, expire_on_commit=False)
+    with TS() as db:
+        t = Team(name="T")
+        db.add(t)
+        db.flush()
+        tom = make_user(db, "tom", "pw", role="tester")
+        make_user(db, "root", "pw", role="admin")
+        newu = make_user(db, "newu", "pw", role="tester")
+        db.flush()
+        db.add(TeamMember(team_id=t.id, user_id=tom.id, role="owner"))
+        db.commit()
+        info = {"tid": t.id, "uid_newu": newu.id}
+    app = create_app()
+
+    def _db():
+        d = TS()
+        try:
+            yield d
+        finally:
+            d.close()
+
+    app.dependency_overrides[get_db] = _db
+    monkeypatch.setattr("app.core.db._get_engine", lambda: engine)
+    yield {"client": TestClient(app), "TS": TS, **info}
+    app.dependency_overrides.clear()
+    engine.dispose()
+
+
+def test_admin_override_audited_with_team_id(audit_env):
+    c = audit_env["client"]
+    tok = c.post("/api/v1/auth/login", json={"username": "root", "password": "pw"}).json()["access_token"]
+    h = {"Authorization": f"Bearer {tok}"}
+    r = c.post(
+        f"/api/v1/teams/{audit_env['tid']}/members",
+        json={"user_id": audit_env["uid_newu"], "role": "tester"},
+        headers=h,
+    )
+    assert r.status_code == 201
+    with audit_env["TS"]() as db:
+        rows = [x for x in db.query(AuditLog).all() if x.action == "team.member.add"]
+    assert rows, "expected an audit row for team.member.add"
+    assert rows[0].team_id == audit_env["tid"]
+    assert rows[0].detail == "admin_override"  # root 非 T 成員 → override

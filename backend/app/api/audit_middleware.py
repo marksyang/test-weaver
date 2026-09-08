@@ -36,6 +36,8 @@ class AuditMiddleware(BaseHTTPMiddleware):
                 action = getattr(request.state, "audit_action", None) or (
                     f"{request.method} {request.url.path}"
                 )
+                team_id = getattr(request.state, "team_id", None)
+                detail = getattr(request.state, "audit_note", None)
                 with session_scope() as db:
                     record_audit(
                         db,
@@ -46,6 +48,8 @@ class AuditMiddleware(BaseHTTPMiddleware):
                         user_id=getattr(user, "id", None),
                         username=username,
                         ip=(request.client.host if request.client else None),
+                        detail=detail,
+                        team_id=team_id,
                     )
             except Exception:  # noqa: BLE001 - 稽核失敗不影響請求
                 pass

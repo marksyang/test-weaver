@@ -218,3 +218,16 @@ def remove_member(db: Session, team_id: int, user_id: int) -> None:
         raise TeamError(400, "cannot remove the last owner of a team")
     db.delete(m)
     db.commit()
+
+
+def delete_team(db: Session, team_id: int) -> None:
+    """刪除團隊（v1.1 T3）。有專案的團隊不可刪（409）；先清 memberships。"""
+    team = db.get(Team, team_id)
+    if team is None:
+        raise TeamError(404, "team not found")
+    proj_count = db.query(Project).filter_by(team_id=team_id).count()
+    if proj_count > 0:
+        raise TeamError(409, f"cannot delete a team with {proj_count} project(s)")
+    db.query(TeamMember).filter_by(team_id=team_id).delete()
+    db.delete(team)
+    db.commit()

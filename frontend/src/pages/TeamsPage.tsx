@@ -1,6 +1,7 @@
 // 多團隊（v1.1 T2）：團隊成員管理 + 建立團隊。
 import { useEffect, useState } from 'react';
 import {
+  Alert,
   App,
   Button,
   Card,
@@ -57,6 +58,11 @@ export default function TeamsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selTeamId]);
 
+  // selTeamId 為空且仍有團隊（初始/刪除後）→ 選第一個
+  useEffect(() => {
+    if (selTeamId == null && teams.length > 0) setSelTeamId(teams[0].id);
+  }, [teams, selTeamId]);
+
   async function doAdd() {
     if (selTeamId == null || newUserId == null) return;
     try {
@@ -107,6 +113,18 @@ export default function TeamsPage() {
     }
   }
 
+  async function doDeleteTeam() {
+    if (selTeamId == null) return;
+    try {
+      await teamsApi.deleteTeam(selTeamId);
+      message.success('已刪除團隊');
+      setSelTeamId(null); // 觸發同步 effect 選剩餘第一個
+      await reload();
+    } catch (e) {
+      message.error(err(e)); // 有專案 → 409
+    }
+  }
+
   const columns: ColumnsType<Member> = [
     { title: '使用者', dataIndex: 'username', key: 'u' },
     {
@@ -150,6 +168,14 @@ export default function TeamsPage() {
           <Typography.Text type="secondary">尚無團隊，請先於下方建立。</Typography.Text>
         ) : (
           <>
+            {!canEdit && (
+              <Alert
+                type="warning"
+                showIcon
+                style={{ marginBottom: 12 }}
+                message={`你在「${selTeam?.name}」無管理權限（需為該團隊 Owner 或平台管理員）。`}
+              />
+            )}
             <Space wrap>
               <Select
                 value={selTeamId ?? undefined}
@@ -177,6 +203,11 @@ export default function TeamsPage() {
               <Button onClick={doAdd} disabled={!canEdit || newUserId == null}>
                 加入成員
               </Button>
+              {user?.role === 'admin' && (
+                <Popconfirm title="刪除該團隊？（僅可刪無專案的團隊）" onConfirm={doDeleteTeam}>
+                  <Button danger>刪除團隊</Button>
+                </Popconfirm>
+              )}
             </Space>
             <Typography.Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 12 }}>
               加入成員需填「使用者數值 ID」（管理員可在『設定 → 帳號管理』查詢）。
