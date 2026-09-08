@@ -1,0 +1,105 @@
+# TestWeaver 本地開發環境：api / worker / qdrant / redis / mysql
+# 使用：
+#   cp .env.example .env    # 填入 EMBEDDING_API_KEY（必填）/ LLM_API_KEY（可選）
+#   # 認證（可選）：.env 設 AUTH_ENABLED=true 啟用 JWT 登入（預設 admin/admin123）
+#   #             設 AUDIT_ENABLED=true 開啟稽核日誌
+#   docker compose up --build
+#   # API: http://localhost:8000/docs
+name: testweaver
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: testweaver
+      MYSQL_USER: testweaver
+      MYSQL_PASSWORD: testweaver
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"            # 開發用；上線可移除
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  api:
+    build: .                    # context = 倉庫根目錄，Dockerfile 在根
+    restart: unless-stopped
+    # api 啟動時先跑遷移（alembic upgrade head 冪等），再啟 uvicorn
+    command: sh -c "alembic -c alembic.ini upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    environment: &tw_env
+      DATABASE_URL: mysql+pymysql://testweaver:testweaver@mysql:3306/testweaver
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      VECTOR_STORE: qdrant
+      QDRANT_URL: http://qdrant:6333
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      # FR-5 認證 / 稽核（預設關閉；以 .env 覆蓋）
+      AUTH_ENABLED: ${AUTH_ENABLED:-false}
+      JWT_SECRET: ${JWT_SECRET:-testweaver-docker-dev-secret-change-me}
+      AUDIT_ENABLED: ${AUDIT_ENABLED:-false}
+      AUTH_ADMIN_USERNAME: ${AUTH_ADMIN_USERNAME:-admin}
+      AUTH_ADMIN_PASSWORD: ${AUTH_ADMIN_PASSWORD:-admin123}
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://localhost:8000/openapi.json',timeout=3).status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  worker:
+    build: .                    # 與 api 同映像，僅 command 不同
+    restart: unless-stopped
+    command: celery -A app.workers.celery_app.celery_app worker --loglevel=info
+    environment: *tw_env        # 共用 api 的 env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+
+volumes:
+  mysql_data:
+  redis_data:
+  qdrant_data:
