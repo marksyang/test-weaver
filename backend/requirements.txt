@@ -3,6 +3,7 @@
 
 # ── Web / API ────────────────────────────────
 fastapi>=0.115
+python-multipart>=0.0.9        # FastAPI File/UploadFile（規格書上傳）所需
 uvicorn[standard]>=0.30
 pydantic>=2.7
 python-jose[cryptography]>=3.3
