@@ -1,0 +1,9 @@
+{
+  "name": "testweaver-capture",
+  "private": true,
+  "version": "0.1.0",
+  "description": "TestWeaver UI 截圖腳本（供 一頁摘要.html）。執行 scripts/capture-shots.sh。",
+  "scripts": {
+    "capture": "node capture_shots.js"
+  }
+}

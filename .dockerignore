@@ -1,0 +1,10 @@
+# 縮小 build context（Dockerfile 只 COPY backend/，其餘僅避免被打包）
+.git
+.gitignore
+**/__pycache__
+*.pyc
+*.pyo
+.env
+.data
+**/*.db
+*.sqlite3

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TestWeaver 一頁摘要</title>
+<style>
+  :root{
+    --ink:#1e293b; --muted:#64748b; --line:#e2e8f0;
+    --brand:#2563eb; --brand2:#7c3aed; --bg:#f8fafc;
+    --ok:#16a34a; --okbg:#f0fdf4;
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-print-color-adjust:exact; print-color-adjust:exact;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC","Heiti TC",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    line-height:1.6; font-size:15px;
+  }
+  .page{max-width:940px; margin:0 auto; padding:28px 32px 40px;}
+  header.hero{
+    background:linear-gradient(120deg,var(--brand),var(--brand2));
+    color:#fff; border-radius:16px; padding:26px 28px; margin-bottom:22px;
+  }
+  header.hero h1{margin:0 0 6px; font-size:28px; letter-spacing:.5px;}
+  header.hero p{margin:0; font-size:16px; opacity:.95;}
+  .eyebrow{font-size:12px; font-weight:700; letter-spacing:2px; opacity:.85; text-transform:uppercase;}
+  section{margin-bottom:22px;}
+  h2.sec{font-size:13px; font-weight:800; letter-spacing:1.5px; color:var(--brand);
+    text-transform:uppercase; margin:0 0 12px; display:flex; align-items:center; gap:8px;}
+  h2.sec::before{content:""; width:14px; height:14px; border-radius:4px;
+    background:linear-gradient(120deg,var(--brand),var(--brand2)); display:inline-block;}
+  .card{background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px 20px;}
+  ul.pain{margin:0; padding-left:0; list-style:none;}
+  ul.pain li{position:relative; padding-left:26px; margin:7px 0;}
+  ul.pain li::before{content:"!"; position:absolute; left:0; top:0; width:18px; height:18px;
+    border-radius:50%; background:#fef2f2; color:#dc2626; font-weight:800; font-size:12px;
+    display:flex; align-items:center; justify-content:center;}
+  .grid{display:grid; grid-template-columns:repeat(5,1fr); gap:12px;}
+  .cap{background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px 14px;}
+  .cap .ic{font-size:26px; line-height:1;}
+  .cap h3{margin:10px 0 6px; font-size:15px;}
+  .cap p{margin:0; color:var(--muted); font-size:13px; line-height:1.5;}
+  .flow{display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:#fff;
+    border:1px solid var(--line); border-radius:14px; padding:16px 18px;}
+  .flow .step{background:#eef2ff; color:#3730a3; border-radius:10px; padding:8px 12px;
+    font-size:13.5px; font-weight:600; white-space:nowrap;}
+  .flow .arr{color:var(--brand); font-weight:800; font-size:18px;}
+  .chips{display:flex; gap:12px; flex-wrap:wrap;}
+  .chip{flex:1 1 160px; background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 16px;}
+  .chip b{display:block; font-size:16px; margin-bottom:2px;}
+  .chip span{color:var(--muted); font-size:13px;}
+  .status{background:var(--okbg); border:1px solid #bbf7d0; border-radius:14px; padding:18px 20px;}
+  .status .badge{display:inline-block; background:var(--ok); color:#fff; font-weight:700;
+    font-size:14px; border-radius:999px; padding:5px 14px; margin-bottom:10px;}
+  .status ul{margin:8px 0 0; padding-left:20px;}
+  .status li{margin:5px 0;}
+  ol.next{margin:0; padding-left:22px;}
+  ol.next li{margin:8px 0;}
+  footer{margin-top:26px; padding-top:14px; border-top:1px solid var(--line);
+    color:var(--muted); font-size:12.5px;}
+  .shots{display:grid; grid-template-columns:repeat(2,1fr); gap:14px; align-items:start;}
+  .shot{margin:0; background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden;}
+  .shot img{width:100%; display:block;}
+  .shot figcaption{padding:8px 14px; font-size:12.5px; color:var(--muted); background:#fafbfc; border-top:1px solid var(--line);}
+  .shot .ph{aspect-ratio:16/10; margin:8px; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:5px; border:2px dashed #cbd5e1; border-radius:10px; background:#f8fafc;
+    color:var(--muted); font-size:13px; text-align:center; padding:0 12px;}
+  .shot .ph b{font-size:28px; line-height:1;}
+  .shot:has(img) .ph{display:none;}
+  @media (max-width:720px){ .grid{grid-template-columns:repeat(2,1fr);} .shots{grid-template-columns:1fr;} }
+  @media print{
+    body{background:#fff; font-size:12.5px;}
+    .page{padding:0; max-width:none;}
+    header.hero,.card,.cap,.chip,.flow,.status{box-shadow:none;}
+    .grid{gap:8px; } .page>*{break-inside:avoid;}
+    /* 未放截圖時整個「產品畫面」區塊隱藏；放了 <img> 才顯示（且只印已填的框） */
+    section.screens:not(:has(img)){display:none;}
+    .screens .shot:not(:has(img)){display:none;}
+    .screens .shot{break-inside:avoid;}
+    @page{ size:A4; margin:12mm; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="hero">
+    <div class="eyebrow">TestWeaver · 一頁摘要</div>
+    <h1>把規格書，直接變成可執行的測試計畫</h1>
+    <p>減少人工整理、自動追蹤缺陷，讓測試結果與責任清晰可查的線上平台。</p>
+  </header>
+
+  <section class="no-break">
+    <h2 class="sec">它解決什麼問題</h2>
+    <div class="card">
+      <ul class="pain">
+        <li>規格書要人工拆成測試項目，<b>慢、易漏、難追溯</b>。</li>
+        <li>測試計畫、開發自測、缺陷分散在各處，沒人說得清「測了什麼、誰測的、還差什麼」。</li>
+        <li>出錯後要改測試計畫（補件），<b>沒有正式流程，容易遺漏</b>。</li>
+        <li>缺乏統一報表與權限分級，管理層看不到全貌。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="no-break">
+    <h2 class="sec">五大能力</h2>
+    <div class="grid">
+      <div class="cap"><div class="ic">📄</div><h3>自動生成項目</h3><p>上傳規格書，AI 抽出「該測什麼」並對應共通類別。</p></div>
+      <div class="cap"><div class="ic">🗂️</div><h3>三層計畫+自測</h3><p>計畫→功能→案例，可看版本；自測綁定到具體案例。</p></div>
+      <div class="cap"><div class="ic">🐞</div><h3>自動轉缺陷/補件</h3><p>失敗自動開缺陷；無對應案例的缺陷自動建補件請求。</p></div>
+      <div class="cap"><div class="ic">📊</div><h3>報表+AI 分析</h3><p>完成即出圖表與 AI 建議，一鍵轉成補件請求。</p></div>
+      <div class="cap"><div class="ic">🔐</div><h3>權限+稽核</h3><p>按角色分級，關鍵操作留紀錄、可追查。</p></div>
+    </div>
+  </section>
+
+  <section class="no-break">
+    <h2 class="sec">怎麼運作</h2>
+    <div class="flow">
+      <span class="step">上傳規格書</span><span class="arr">→</span>
+      <span class="step">AI 生成測試項目</span><span class="arr">→</span>
+      <span class="step">組建計畫並執行 / 自測</span><span class="arr">→</span>
+      <span class="step">失敗自動開缺陷與補件</span><span class="arr">→</span>
+      <span class="step">完成出報表 + AI 分析</span>
+    </div>
+  </section>
+
+  <section class="no-break screens">
+    <h2 class="sec">產品畫面</h2>
+    <div class="shots">
+      <figure class="shot">
+        <img src="shots/login.png" alt="登入頁與依角色顯示的功能選單">
+        <figcaption>登入與依角色顯示的功能選單</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="shots/plan.png" alt="測試計畫：Test Plan → Function → Case 三層結構與版本">
+        <figcaption>計畫 → 功能 → 案例，含版本</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="shots/defect.png" alt="缺陷追蹤：執行 Fail 自動開 Defect、無案例缺陷自動建 Revision Request">
+        <figcaption>Fail→缺陷、自動 Revision Request</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="shots/report.png" alt="完成報表：通過率 / 缺陷分佈 ECharts + AI 分析建議">
+        <figcaption>ECharts 圖表 + AI 建議</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="no-break">
+    <h2 class="sec">對組織的好處</h2>
+    <div class="chips">
+      <div class="chip"><b>⚡ 更快</b><span>測試項目由 AI 起稿，人工只需審定</span></div>
+      <div class="chip"><b>🧩 不漏</b><span>缺陷與補件自動串接、有正式流程</span></div>
+      <div class="chip"><b>🔍 可查</b><span>結果對應到人與案例，操作全程有稽核</span></div>
+      <div class="chip"><b>🛡️ 可控</b><span>按角色分配權限，敏感操作只有管理員能做</span></div>
+    </div>
+  </section>
+
+  <section class="no-break">
+    <h2 class="sec">目前狀態</h2>
+    <div class="status">
+      <span class="badge">✅ 已交付 · 已通過測試 · 可上線</span>
+      <ul>
+        <li>具備完整<b>登入與角色權限</b>（預設管理員帳號，上線前更換）。</li>
+        <li>「測試管理、開發自測、缺陷追蹤」在<b>同一個平台</b>完成。</li>
+        <li>有<b>稽核日誌</b>，可追溯誰在何時做了什麼。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="no-break">
+    <h2 class="sec">接下來可做（依優先序）</h2>
+    <div class="card">
+      <ol class="next">
+        <li>接上團隊實際使用的 AI 模型與既有資料，產出更貼合的分析。</li>
+        <li>依部門角色<b>細化權限與審批流程</b>。</li>
+        <li>開放更多使用者帳號、依團隊配置角色，並<b>正式啟用稽核日誌</b>。</li>
+      </ol>
+    </div>
+  </section>
+
+  <footer>
+    技術細節與架構請見《交付說明.md》；此頁僅供快速了解價值與現況。可直接列印為 PDF 分發。
+  </footer>
+
+</div>
+</body>
+</html>

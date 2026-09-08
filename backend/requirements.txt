@@ -1,0 +1,30 @@
+# TestWeaver 後端依賴（Python 3.12）
+# 安裝：pip install -r requirements.txt
+
+# ── Web / API ────────────────────────────────
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7
+python-jose[cryptography]>=3.3
+
+# ── 資料庫 / ORM / 遷移 ─────────────────────
+SQLAlchemy>=2.0
+alembic>=1.13
+PyMySQL>=1.1                 # MySQL 驅動（含 caching_sha2_password）
+cryptography>=42.0           # PyMySQL auth 所需
+
+# ── 非同步任務 / 佇列 ───────────────────────
+celery>=5.4
+redis>=5.0
+
+# ── 檔案解析（規格書）──────────────────────
+python-docx>=1.1             # .docx
+pypdf>=4.0                   # .pdf
+
+# ── RAG / 向量引擎 ─────────────────────────
+qdrant-client>=1.12          # Qdrant（預設引擎）
+psycopg[binary]>=3.1         # pgvector 引擎連線（選用；骨架以原生 SQL）
+
+# ── 測試 ────────────────────────────────────
+pytest>=8.0
+httpx>=0.27                  # FastAPI TestClient 依賴

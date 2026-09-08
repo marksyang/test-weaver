@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Env / secrets（保留 .env.example）
+.env
+
+# 本機 SQLite（開發/截圖用）
+*.db
+*.sqlite3
+testweaver_dev.db
+shots_demo.db
+
+# 本機上傳
+uploads/
+
+# Node（根層；frontend/ 有自己的 .gitignore）
+scripts/node_modules/
+
+# OS / editor
+.DS_Store
+
+# IDE / 工具（個人設定，不進 repo）
+.idea/
+.pi/
