@@ -13,6 +13,7 @@ from .defect import TestExecution, Defect
 from .revision import TestPlanRevisionRequest
 from .report import AiReport
 from .user import User
+from .team import Team, TeamMember
 from .audit import AuditLog
 
 __all__ = [
@@ -45,6 +46,9 @@ __all__ = [
     "AiReport",
     # M8 使用者 / 角色
     "User",
+    # 多團隊（v1.1 T1）
+    "Team",
+    "TeamMember",
     # FR-5 稽核日誌
     "AuditLog",
 ]
