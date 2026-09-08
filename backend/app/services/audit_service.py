@@ -19,6 +19,7 @@ def record_audit(
     username: Optional[str] = None,
     ip: Optional[str] = None,
     detail: Optional[str] = None,
+    team_id: Optional[int] = None,
 ) -> AuditLog:
     row = AuditLog(
         user_id=user_id,
@@ -29,6 +30,7 @@ def record_audit(
         status_code=status_code,
         ip=(ip or None),
         detail=detail,
+        team_id=team_id,
     )
     db.add(row)
     db.flush()

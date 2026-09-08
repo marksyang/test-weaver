@@ -24,6 +24,8 @@ class AuditLog(Base):
     path: Mapped[str] = mapped_column(String(256), nullable=False)
     status_code: Mapped[int] = mapped_column(Integer, nullable=False)
     ip: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    # 多團隊（v1.1 T3）：跨團隊追溯
+    team_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
     detail: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()

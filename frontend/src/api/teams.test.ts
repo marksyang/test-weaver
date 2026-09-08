@@ -43,6 +43,16 @@ describe('teamsApi (多團隊 T2)', () => {
     expect(url).toBe('/api/v1/teams/3/members/5');
     expect(init?.method).toBe('DELETE');
   });
+
+  it('deleteTeam → DELETE /teams/:id（204）', async () => {
+    const f = mockFetch();
+    f.mockResolvedValueOnce(res(null, 204));
+    const out = await teamsApi.deleteTeam(9);
+    expect(out).toBeUndefined();
+    const [url, init] = f.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/api/v1/teams/9');
+    expect(init?.method).toBe('DELETE');
+  });
 });
 
 describe('canManageTeam (前端授權)', () => {

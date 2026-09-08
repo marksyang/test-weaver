@@ -238,6 +238,7 @@ GitHub Actions：`.github/workflows/ci.yml` — push / PR 時跑兩個 job（`Ba
 - ✅ **P4**：完成觸發報表 + AI 分析（FR-4，M6）
 - ✅ **P5**：Web UI + JWT 登入 + 角色選單 + 稽核日誌 + **帳號/角色管理**（FR-5，M8）
 - ✅ **P6**：CI（Makefile + GitHub Actions）+ Docker 部署 + 交付文件（README/程式計劃書/交付說明/一頁摘要+截圖）
+- ✅ **v1.1 · 多團隊**：team/member + 資料隔離 + 團隊級 RBAC（owner/platform admin）+ team switcher/成員頁 + 稽核 team_id + team 刪除保護（T1–T3，見 `docs/規劃-多團隊.md`）
 
 ### 下一步（規劃中，依優先序）
 - **P7 · 治理細化**：完整 RBAC（端點級角色控制）、審批流程、JWT refresh / 登出失效（revoke）
@@ -245,4 +246,4 @@ GitHub Actions：`.github/workflows/ci.yml` — push / PR 時跑兩個 job（`Ba
 - **P8 · 產品化/效能**：ECharts code-splitting（`echarts/core`，只註冊 bar/pie）、MySQL 連線池調校、輸入驗證 + 限流
 - **P8 · 測試/CI**：覆蓋率門檻（pytest-cov / vitest coverage）+ artifact 上傳、前端頁面級測試（RTL 流程）
 - **P9 · 生產加固**：CORS 白名單、HTTPS、備份策略、密鑰/Secrets 管理
-- **可選**：多專案/多團隊、RAG 檢索回饋（點擊/評分）、報表排程與 email/PDF 匯出
+- **可選**：RAG 檢索回饋（點擊/評分）、報表排程與 email/PDF 匯出、跨團隊共用專案

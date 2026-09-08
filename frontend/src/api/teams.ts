@@ -31,4 +31,5 @@ export const teamsApi = {
     apiFetch<Member>(`/teams/${id}/members/${userId}`, { method: 'PATCH', body: JSON.stringify({ role }) }),
   removeMember: (id: number, userId: number) =>
     apiFetch<void>(`/teams/${id}/members/${userId}`, { method: 'DELETE' }),
+  deleteTeam: (id: number) => apiFetch<void>(`/teams/${id}`, { method: 'DELETE' }),
 };
