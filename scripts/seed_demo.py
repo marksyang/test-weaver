@@ -22,7 +22,9 @@ from app.services.revision_service import (
     create_revision_request,
     ensure_revision_for_defect,
 )
-from app.services.auth_service import ensure_default_admin
+from app.models.user import User
+from app.models.team import Team, TeamMember
+from app.services.auth_service import ensure_default_admin, make_user
 
 Base.metadata.create_all(_get_engine())
 
@@ -60,7 +62,25 @@ def add_case(s, fn_id, name, status, priority="medium", pre="", steps="", exp=""
 
 ids = {}
 with session_scope() as s:
-    proj = Project(name="電商結帳系統", description="示範專案（自動產生資料）")
+    # 多團隊示範：一個 populated 團隊 + 成員（供 UI 截圖：header switcher + TeamsPage）
+    admin_name = os.getenv("AUTH_ADMIN_USERNAME", "admin")
+    admin = s.query(User).filter_by(username=admin_name).first()
+    lead = make_user(s, "chen-lead", "pw", role="qa_lead")
+    t1 = make_user(s, "wang-tester", "pw", role="tester")
+    t2 = make_user(s, "li-tester", "pw", role="tester")
+    s.flush()
+    team = Team(name="電商品質組", description="結帳系統品保團隊")
+    s.add(team)
+    s.flush()
+    for uid, role in [
+        (admin.id, "owner"),
+        (lead.id, "qa_lead"),
+        (t1.id, "tester"),
+        (t2.id, "tester"),
+    ]:
+        s.add(TeamMember(team_id=team.id, user_id=uid, role=role))
+
+    proj = Project(name="電商結帳系統", description="示範專案（自動產生資料）", team_id=team.id)
     s.add(proj)
     s.flush()
 
