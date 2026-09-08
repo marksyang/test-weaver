@@ -1,9 +1,9 @@
 /**
- * 用無頭 Chrome（puppeteer-core，套用系統已裝的 Chrome）為 TestWeaver 抓四張 UI 截圖。
+ * 用無頭 Chrome（puppeteer-core，套用系統已裝的 Chrome）為 TestWeaver 抓五張 UI 截圖。
  * 由 scripts/capture-shots.sh 呼叫（起好前端後）。也可單獨跑：
  *   BASE=http://localhost:5173 OUT=shots CHROME_PATH="/Applications/Google Chrome.app/..." \
  *     node scripts/capture_shots.js
- * 產物：$OUT/{login,plan,defect,report}.png（供 一頁摘要.html 的「產品畫面」）。
+ * 產物：$OUT/{login,plan,defect,report,teams}.png（供 一頁摘要.html 的「產品畫面」）。
  */
 const path = require('path');
 const fs = require('fs');
@@ -143,6 +143,17 @@ async function clickByText(page, sel, text) {
   await sleep(700);
   await page.screenshot({ path: path.join(OUT, 'report.png') });
   log('report captured');
+
+  // 5) teams：成員管理頁（admin 可見全部團隊 + 可管理）
+  await page.goto(BASE + '/teams', { waitUntil: 'networkidle0' });
+  await sleep(700);
+  await page.waitForFunction(
+    () => document.querySelectorAll('.ant-table-tbody tr').length >= 3,
+    { timeout: 20000 }
+  );
+  await sleep(800);
+  await page.screenshot({ path: path.join(OUT, 'teams.png'), fullPage: true });
+  log('teams captured');
 
   await browser.close();
   console.log('ALL_DONE');
