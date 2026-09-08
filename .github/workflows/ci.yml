@@ -18,8 +18,14 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - name: Install deps
         run: pip install -r backend/requirements.txt
-      - name: Run tests (offline)
-        run: python -m pytest backend/tests -q
+      - name: Run tests (offline, +coverage gate)
+        run: python -m pytest backend/tests -q --cov=app --cov-report=term-missing --cov-report=xml --cov-fail-under=82
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: coverage.xml
 
   frontend:
     name: Frontend · tsc + vitest + build
@@ -38,7 +44,13 @@ jobs:
         run: npm ci
       - name: Typecheck
         run: npx tsc --noEmit
-      - name: Unit tests (vitest)
-        run: npx vitest run
+      - name: Unit tests (vitest, +coverage)
+        run: npx vitest run --coverage
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: coverage/
       - name: Build
         run: npm run build

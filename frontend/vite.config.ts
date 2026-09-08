@@ -15,5 +15,21 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      reportsDirectory: './coverage',
+      exclude: [
+        '**/node_modules/**',
+        '**/dist/**',
+        '**/coverage/**',
+        '**/*.d.ts',
+        '**/*.test.*',
+        'src/test/**',
+        'src/types/**',
+      ],
+      // 防回歸的低級 ratchet floor（純頁面/元件測試屬 P8，後續會自然拉高；現 ~9.4%）
+      thresholds: { statements: 8, lines: 8 },
+    },
   },
 });
