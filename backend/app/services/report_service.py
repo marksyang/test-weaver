@@ -5,12 +5,18 @@ AI：LLM 優先（JSON），未配置或失敗 → 離線啟發式 fallback（�
 """
 from __future__ import annotations
 
+import io
 import json
 import os
 from collections import Counter
+from email import encoders
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from typing import Optional, Tuple
 
 import httpx
+import smtplib
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -198,3 +204,196 @@ def generate_report(session: Session, plan_id: int) -> AiReport:
     session.add(report)
     session.flush()
     return report
+
+
+# ---------- 匯出：PDF + Email（FR-4 延伸）----------
+class EmailNotConfigured(Exception):
+    """SMTP 未設定（SMTP_HOST 為空）。"""
+
+
+def _report_pdf_font() -> str:
+    """回傳可用 CJK 字型名。優先用 `PDF_FONT` env 指向的 TTF（可改善繁體覆蓋），
+    否則回落到 reportlab 內建 CID 字型 STSong-Light（免外掛字型檔）。"""
+    from reportlab.pdfbase import pdfmetrics
+
+    custom = os.getenv("PDF_FONT", "").strip()
+    if custom and os.path.exists(custom):
+        try:
+            from reportlab.pdfbase.ttfonts import TTFont
+            pdfmetrics.registerFont(TTFont("tw_custom", custom))
+            return "tw_custom"
+        except Exception:  # noqa: BLE001
+            pass
+    try:
+        from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+        pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
+    except Exception:  # noqa: BLE001
+        pass  # 已註冊或不支援 → STSong-Light 通常仍可用
+    return "STSong-Light"
+
+
+def render_report_pdf_bytes(plan_name: str, summary: str, recs: list, m: dict) -> bytes:
+    """以 reportlab 產生報表 PDF（指標 + 摘要 + AI 建議），含 CJK。"""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    font = _report_pdf_font()
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm,
+        topMargin=18 * mm, bottomMargin=18 * mm,
+    )
+    base = getSampleStyleSheet()
+    h1 = ParagraphStyle("tw_h1", parent=base["Title"], fontName=font, fontSize=18, leading=22)
+    body = ParagraphStyle("tw_body", parent=base["Normal"], fontName=font, fontSize=10, leading=14)
+    bullet = ParagraphStyle("tw_bullet", parent=body, leftIndent=8, leading=14)
+
+    d = m.get("defects", {}) or {}
+
+    def pct(x):
+        return f"{(x or 0) * 100:.1f}%"
+
+    rows = [
+        ["功能數", str(m.get("total_functions", 0))],
+        ["案例數（通過/失敗/阻塞/未執行）",
+         f"{m.get('total_cases', 0)}（{m.get('passed', 0)}/{m.get('failed', 0)}/{m.get('blocked', 0)}/{m.get('pending', 0)}）"],
+        ["通過率 / 覆蓋率", f"{pct(m.get('pass_rate'))} / {pct(m.get('coverage'))}"],
+        ["缺陷（未結 / 高嚴重度）",
+         f"{d.get('total', 0)}（{d.get('open_or_in_progress', 0)} / {d.get('high_severity', 0)}）"],
+        ["覆蓋缺口", ", ".join(m.get("coverage_gaps", []) or []) or "無"],
+        ["失敗案例", ", ".join(m.get("failed_cases", []) or []) or "無"],
+    ]
+    data = [[Paragraph(str(a), body), Paragraph(str(b), body)] for a, b in rows]
+    tbl = Table(data, colWidths=[62 * mm, 108 * mm])
+    tbl.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#f5f5f5")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+
+    elements = [
+        Paragraph("測試報表", h1),
+        Spacer(1, 6),
+        Paragraph(f"計畫：{plan_name}", body),
+        Spacer(1, 4),
+        Paragraph(f"摘要：{summary or '（無）'}", body),
+        Spacer(1, 10),
+        Paragraph("指標", h1),
+        Spacer(1, 4),
+        tbl,
+        Spacer(1, 10),
+        Paragraph("AI 分析建議", h1),
+        Spacer(1, 4),
+    ]
+    if recs:
+        for r in recs:
+            elements.append(Paragraph(f"• {r.get('title', '建議')}：{r.get('detail', '')}", bullet))
+    else:
+        elements.append(Paragraph("（無）", body))
+
+    doc.build(elements)
+    return buf.getvalue()
+
+
+def parse_recs(report: AiReport) -> list:
+    """把 report.recommendations（JSON 陣列字串）解析為 list[dict]。"""
+    try:
+        recs = json.loads(report.recommendations) if report.recommendations else []
+    except Exception:  # noqa: BLE001
+        recs = []
+    return [r for r in recs if isinstance(r, dict)] if isinstance(recs, list) else []
+
+
+def latest_report(db: Session, plan_id: int) -> Optional[AiReport]:
+    return (
+        db.query(AiReport).filter_by(test_plan_id=plan_id).order_by(AiReport.id.desc()).first()
+    )
+
+
+def _report_html(plan_name: str, summary: str, recs: list, m: dict) -> str:
+    d = m.get("defects", {}) or {}
+
+    def pct(x):
+        return f"{(x or 0) * 100:.1f}%"
+
+    rec_html = "".join(
+        f"<li><b>{r.get('title', '建議')}</b>：{r.get('detail', '')}</li>" for r in recs
+    ) or "<li>（無）</li>"
+    return f"""
+    <div style="font-family:sans-serif;font-size:14px;line-height:1.6;">
+      <h2 style="margin-bottom:0;">測試報表</h2>
+      <p><b>計畫：</b>{plan_name}</p>
+      <p><b>摘要：</b>{summary or '（無）'}</p>
+      <table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;border-color:#ddd;">
+        <tr><td>功能數</td><td>{m.get('total_functions', 0)}</td></tr>
+        <tr><td>案例數（通過/失敗/阻塞/未執行）</td>
+            <td>{m.get('total_cases', 0)}（{m.get('passed', 0)}/{m.get('failed', 0)}/{m.get('blocked', 0)}/{m.get('pending', 0)}）</td></tr>
+        <tr><td>通過率 / 覆蓋率</td><td>{pct(m.get('pass_rate'))} / {pct(m.get('coverage'))}</td></tr>
+        <tr><td>缺陷（未結 / 高嚴重度）</td>
+            <td>{d.get('total', 0)}（{d.get('open_or_in_progress', 0)} / {d.get('high_severity', 0)}）</td></tr>
+        <tr><td>覆蓋缺口</td><td>{', '.join(m.get('coverage_gaps', []) or []) or '無'}</td></tr>
+        <tr><td>失敗案例</td><td>{', '.join(m.get('failed_cases', []) or []) or '無'}</td></tr>
+      </table>
+      <h3>AI 分析建議</h3>
+      <ul>{rec_html}</ul>
+    </div>
+    """
+
+
+def build_report_email(db: Session, plan_id: int, to_addr: str) -> Tuple[str, str, bytes]:
+    """組一則報表 email：回傳 (subject, html_body, pdf_bytes)。不實際發送。"""
+    report = latest_report(db, plan_id)
+    if report is None:
+        raise ReportError("report not ready", 404)
+    plan = db.get(TestPlan, plan_id)
+    plan_name = plan.name if plan else f"plan #{plan_id}"
+    m = report.metrics_json or {}
+    recs = parse_recs(report)
+    summary = report.summary or ""
+    subject = f"【TestWeaver】測試報表：{plan_name}（通過率 {(m.get('pass_rate') or 0) * 100:.0f}%）"
+    html = _report_html(plan_name, summary, recs, m)
+    pdf = render_report_pdf_bytes(plan_name, summary, recs, m)
+    return subject, html, pdf
+
+
+def _smtp_send(*, subject: str, html_body: str, pdf_bytes: bytes, to_addr: str) -> None:
+    """實際 SMTP 發送（測試可 monkeypatch）。"""
+    host = os.getenv("SMTP_HOST", "")
+    port = int(os.getenv("SMTP_PORT", "587") or 587)
+    user = os.getenv("SMTP_USER", "")
+    password = os.getenv("SMTP_PASSWORD", "")
+    sender = os.getenv("EMAIL_FROM") or user or "testweaver@localhost"
+
+    msg = MIMEMultipart("mixed")
+    msg["Subject"] = subject
+    msg["From"] = sender
+    msg["To"] = to_addr
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    if pdf_bytes:
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(pdf_bytes)
+        encoders.encode_base64(part)
+        part.add_header("Content-Disposition", 'attachment; filename="testweaver-report.pdf"')
+        msg.attach(part)
+
+    with smtplib.SMTP(host, port, timeout=30) as s:
+        if os.getenv("SMTP_STARTTLS", "true").strip().lower() in ("1", "true", "yes", "on"):
+            try:
+                s.starttls()
+            except Exception:  # noqa: BLE001
+                pass
+        if user:
+            s.login(user, password)
+        s.send_message(msg)
+
+
+def send_report_email(db: Session, plan_id: int, to_addr: str) -> None:
+    """組報表 email 並發送。SMTP 未設定 → EmailNotConfigured；無報表 → ReportError(404)。"""
+    host = os.getenv("SMTP_HOST", "").strip()
+    if not host:
+        raise EmailNotConfigured("SMTP 未設定（請設 SMTP_HOST）")
+    subject, html, pdf = build_report_email(db, plan_id, to_addr)
+    _smtp_send(subject=subject, html_body=html, pdf_bytes=pdf, to_addr=to_addr)

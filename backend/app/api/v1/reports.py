@@ -7,10 +7,11 @@ from __future__ import annotations
 import csv
 import io
 import json
+import re
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
@@ -19,7 +20,14 @@ from ...core.db import get_db
 from ...models.report import AiReport
 from ...models.test_plan import TestPlan
 from ...services.plan_service import PlanError, assert_plan_transition
-from ...services.report_service import ReportError, generate_report
+from ...services.report_service import (
+    EmailNotConfigured,
+    ReportError,
+    generate_report,
+    parse_recs,
+    render_report_pdf_bytes,
+    send_report_email,
+)
 
 router = APIRouter(tags=["Reports/M6"])
 
@@ -112,11 +120,29 @@ def get_report(plan_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/reports/{plan_id}/export")
-def export_report(plan_id: int, db: Session = Depends(get_db)):
+def export_report(plan_id: int, format: str = Query("csv"), db: Session = Depends(get_db)):
     report = _latest_report(db, plan_id)
     if report is None:
         raise HTTPException(404, "report not ready")
     m = report.metrics_json or {}
+
+    fmt = (format or "csv").strip().lower()
+    if fmt == "pdf":
+        plan = db.get(TestPlan, plan_id)
+        plan_name = plan.name if plan else f"plan #{plan_id}"
+        recs = parse_recs(report)
+        try:
+            pdf = render_report_pdf_bytes(plan_name, report.summary or "", recs, m)
+        except ImportError as e:
+            raise HTTPException(501, f"PDF 匯出不可用（缺 reportlab）: {e}")
+        return Response(
+            content=pdf,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="report_{plan_id}.pdf"'},
+        )
+    if fmt != "csv":
+        raise HTTPException(400, f"unsupported export format: {format}（csv | pdf）")
+
     d = m.get("defects", {})
 
     buf = io.StringIO()
@@ -151,3 +177,26 @@ def export_report(plan_id: int, db: Session = Depends(get_db)):
             "Content-Disposition": f'attachment; filename="report_{plan_id}.csv"'
         },
     )
+
+
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+class SendIn(BaseModel):
+    to: str
+
+
+@router.post("/reports/{plan_id}/send")
+def send_report(plan_id: int, body: SendIn, request: Request, db: Session = Depends(get_db)):
+    """Email 報表（HTML + PDF 附件）給收件人。SMTP 未設定 → 503；無報表 → 404。"""
+    request.state.audit_action = "report.send"
+    to = (body.to or "").strip()
+    if not _EMAIL_RE.match(to):
+        raise HTTPException(422, "invalid recipient email")
+    try:
+        send_report_email(db, plan_id, to)
+    except EmailNotConfigured as e:
+        raise HTTPException(503, str(e))
+    except ReportError as e:
+        raise HTTPException(e.status_code, str(e))
+    return {"ok": True, "to": to}

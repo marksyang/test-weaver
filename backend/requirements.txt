@@ -21,6 +21,7 @@ redis>=5.0
 # ── 檔案解析（規格書）──────────────────────
 python-docx>=1.1             # .docx
 pypdf>=4.0                   # .pdf
+reportlab>=4.0                # 報表 PDF 匯出（內建 CJK）
 
 # ── RAG / 向量引擎 ─────────────────────────
 qdrant-client>=1.12          # Qdrant（預設引擎）
