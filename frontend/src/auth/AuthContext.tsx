@@ -5,6 +5,7 @@ import type { AuthUser } from '../types/auth';
 
 // 與 api/client.ts 預設 token key 一致
 const TOKEN_KEY = 'tw_token';
+const REFRESH_KEY = 'tw_refresh';
 
 function readToken(): string | null {
   try {
@@ -18,6 +19,23 @@ function writeToken(token: string | null): void {
   try {
     if (token) localStorage.setItem(TOKEN_KEY, token);
     else localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* ignore storage errors */
+  }
+}
+
+function readRefresh(): string | null {
+  try {
+    return localStorage.getItem(REFRESH_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeRefresh(token: string | null): void {
+  try {
+    if (token) localStorage.setItem(REFRESH_KEY, token);
+    else localStorage.removeItem(REFRESH_KEY);
   } catch {
     /* ignore storage errors */
   }
@@ -57,12 +75,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (username: string, password: string) => {
     const r = await authApi.login(username, password);
     writeToken(r.access_token);
+    writeRefresh(r.refresh_token ?? null);
     setUser(r.user);
     return r.user;
   }, []);
 
   const logout = useCallback(() => {
+    const rt = readRefresh();
+    if (rt) authApi.logout(rt).catch(() => {}); // best-effort 撤銷 refresh（不阻斷 UI）
     writeToken(null);
+    writeRefresh(null);
     setUser(null);
   }, []);
 

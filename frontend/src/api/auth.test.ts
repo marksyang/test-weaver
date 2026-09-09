@@ -12,10 +12,11 @@ describe('authApi', () => {
   it('login POSTs username/password to /auth/login', async () => {
     const f = mockFetch();
     f.mockResolvedValueOnce(
-      res({ access_token: 't', token_type: 'bearer', user: { id: 1, username: 'admin', role: 'admin' } }),
+      res({ access_token: 't', refresh_token: 'rt', token_type: 'bearer', user: { id: 1, username: 'admin', role: 'admin' } }),
     );
     const out = await authApi.login('admin', 'p');
     expect(out.access_token).toBe('t');
+    expect(out.refresh_token).toBe('rt');
     const [url, init] = f.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('/api/v1/auth/login');
     expect(JSON.parse(init!.body as string)).toEqual({ username: 'admin', password: 'p' });
@@ -34,5 +35,15 @@ describe('authApi', () => {
     expect(u.role).toBe('admin');
     const [url] = f.mock.calls[0] as [string];
     expect(url).toBe('/api/v1/auth/me');
+  });
+
+  it('logout POSTs refresh_token to /auth/logout', async () => {
+    const f = mockFetch();
+    f.mockResolvedValueOnce(res({ ok: true }));
+    const out = await authApi.logout('rt');
+    expect(out.ok).toBe(true);
+    const [url, init] = f.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/api/v1/auth/logout');
+    expect(JSON.parse(init!.body as string)).toEqual({ refresh_token: 'rt' });
   });
 });

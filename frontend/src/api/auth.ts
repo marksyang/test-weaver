@@ -9,4 +9,10 @@ export const authApi = {
       body: JSON.stringify({ username, password }),
     }),
   me: () => apiFetch<AuthUser>('/auth/me'),
+  // 登出：撤銷 refresh token（client 內部另於 401 自動 refresh）
+  logout: (refreshToken: string) =>
+    apiFetch<{ ok: boolean }>('/auth/logout', {
+      method: 'POST',
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    }),
 };
