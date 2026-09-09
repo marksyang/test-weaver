@@ -1,21 +1,21 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render } from '@testing-library/react';
-import * as echarts from 'echarts';
-import EChart from './EChart';
+import { cleanup, render, waitFor } from '@testing-library/react';
 
-// mock 掉 echarts（jsdom 沒有 canvas）：init 每次回傳全新 instance，避免跨測試累計
-vi.mock('echarts', () => ({
-  init: vi.fn(() => ({ setOption: vi.fn(), resize: vi.fn(), dispose: vi.fn() })),
+// mock 掉瘦身 echarts 模組（jsdom 沒有 canvas；動態 import('../lib/echarts') 會拿到這個 mock）
+vi.mock('../lib/echarts', () => ({
+  default: { init: vi.fn() },
 }));
 
-const echartsMock = vi.mocked(echarts);
+import EChart from './EChart';
+import * as slim from '../lib/echarts';
 
-type Inst = { setOption: ReturnType<typeof vi.fn>; resize: ReturnType<typeof vi.fn>; dispose: ReturnType<typeof vi.fn> };
-const instanceFrom = (callIndex = 0): Inst => {
-  const results = echartsMock.init.mock.results;
-  const value = (results[callIndex] ?? results[results.length - 1])?.value;
-  return value as Inst;
+const initMock = vi.mocked(slim.default).init;
+type Inst = {
+  setOption: ReturnType<typeof vi.fn>;
+  resize: ReturnType<typeof vi.fn>;
+  dispose: ReturnType<typeof vi.fn>;
 };
+const makeInstance = (): Inst => ({ setOption: vi.fn(), resize: vi.fn(), dispose: vi.fn() });
 
 type Option = Parameters<typeof EChart>[0]['option'];
 
@@ -25,25 +25,32 @@ afterEach(() => {
 });
 
 describe('EChart', () => {
-  it('inits the chart and calls setOption(option, true) on mount', () => {
+  it('inits the chart and calls setOption(option, true)', async () => {
+    const instance = makeInstance();
+    initMock.mockReturnValueOnce(instance as unknown as ReturnType<typeof initMock>);
     const option = {} as Option;
     render(<EChart option={option} height={200} />);
-    expect(echartsMock.init).toHaveBeenCalledTimes(1);
-    expect(instanceFrom().setOption).toHaveBeenCalledWith(option, true);
+    await waitFor(() => expect(initMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(instance.setOption).toHaveBeenCalledWith(option, true));
   });
 
-  it('disposes the chart on unmount', () => {
-    const option = {} as Option;
-    const { unmount } = render(<EChart option={option} />);
+  it('disposes the chart on unmount', async () => {
+    const instance = makeInstance();
+    initMock.mockReturnValueOnce(instance as unknown as ReturnType<typeof initMock>);
+    const { unmount } = render(<EChart option={{} as Option} />);
+    await waitFor(() => expect(initMock).toHaveBeenCalledTimes(1));
     unmount();
-    expect(instanceFrom().dispose).toHaveBeenCalledTimes(1);
+    expect(instance.dispose).toHaveBeenCalledTimes(1);
   });
 
-  it('re-applies setOption when the option changes', () => {
+  it('re-applies setOption when the option changes', async () => {
+    const instance = makeInstance();
+    initMock.mockReturnValueOnce(instance as unknown as ReturnType<typeof initMock>);
     const a = {} as Option;
     const b = { series: [] } as unknown as Option;
     const { rerender } = render(<EChart option={a} />);
+    await waitFor(() => expect(instance.setOption).toHaveBeenCalledWith(a, true));
     rerender(<EChart option={b} />);
-    expect(instanceFrom().setOption).toHaveBeenLastCalledWith(b, true);
+    await waitFor(() => expect(instance.setOption).toHaveBeenLastCalledWith(b, true));
   });
 });

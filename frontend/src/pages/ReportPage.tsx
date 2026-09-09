@@ -16,7 +16,7 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import * as echarts from 'echarts';
+import type { EChartsOption } from '../lib/echarts';
 import EChart from '../components/EChart';
 import { m1Api } from '../api/m1';
 import { m2Api } from '../api/m2';
@@ -74,7 +74,7 @@ export default function ReportPage() {
 
   const m = report?.metrics ?? null;
 
-  const statusOption: echarts.EChartsOption = useMemo(
+  const statusOption: EChartsOption = useMemo(
     () => ({
       title: { text: '案例結果分佈', left: 'center' },
       tooltip: { trigger: 'item' },
@@ -96,7 +96,7 @@ export default function ReportPage() {
     [m],
   );
 
-  const sevOption: echarts.EChartsOption = useMemo(() => {
+  const sevOption: EChartsOption = useMemo(() => {
     const sev = m?.defects.by_severity ?? {};
     return {
       title: { text: '缺陷嚴重度分佈', left: 'center' },
