@@ -5,7 +5,9 @@ import {
   Button,
   Card,
   Col,
+  Input,
   List,
+  Modal,
   Row,
   Select,
   Space,
@@ -38,6 +40,9 @@ export default function ReportPage() {
   const [completing, setCompleting] = useState(false);
   const [convertingId, setConvertingId] = useState<string | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailTo, setEmailTo] = useState('');
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     m1Api.listProjects().then(setProjects).catch(() => setProjects([]));
@@ -140,6 +145,26 @@ export default function ReportPage() {
     }
   };
 
+  const handleSendEmail = async () => {
+    if (planId == null) return;
+    const to = emailTo.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) {
+      message.error('請輸入有效 email');
+      return;
+    }
+    setSending(true);
+    try {
+      await m6Api.sendReport(planId, to);
+      message.success(`報表已寄給 ${to}`);
+      setEmailOpen(false);
+      setEmailTo('');
+    } catch (e) {
+      message.error(errMsg(e));
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <Row gutter={16} align="middle">
@@ -182,9 +207,15 @@ export default function ReportPage() {
             </Button>
           )}
           {planId != null && report && (
-            <Button href={m6Api.exportUrl(planId)} target="_blank">
-              匯出 CSV
-            </Button>
+            <Space>
+              <Button href={m6Api.exportUrl(planId, 'csv')} target="_blank">
+                匯出 CSV
+              </Button>
+              <Button href={m6Api.exportUrl(planId, 'pdf')} target="_blank">
+                下載 PDF
+              </Button>
+              <Button onClick={() => setEmailOpen(true)}>Email 報表</Button>
+            </Space>
           )}
         </Col>
       </Row>
@@ -288,6 +319,23 @@ export default function ReportPage() {
           </Card>
         </>
       )}
+
+      <Modal
+        title="Email 報表"
+        open={emailOpen}
+        onOk={handleSendEmail}
+        okText="發送"
+        cancelText="取消"
+        confirmLoading={sending}
+      >
+        <Text>將報表（含 PDF 附件）寄給：</Text>
+        <Input
+          value={emailTo}
+          onChange={(e) => setEmailTo(e.target.value)}
+          placeholder="收件人 email"
+          style={{ marginTop: 8 }}
+        />
+      </Modal>
     </Space>
   );
 }

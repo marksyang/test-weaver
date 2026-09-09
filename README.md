@@ -11,7 +11,7 @@
 | FR-1 / 1a | 規格書解析 + 測試項目產生（共通類別平台衍生） | ✅ 已實作 + 測試（M1/M7） |
 | FR-2 / 2a | 三層測試結構 + 自測對應 | ✅ 已實作 + 測試（M2/M3） |
 | FR-3 / 3a | Fail → Defect；無案例 → 測試計畫修改要求 | ✅ 已實作 + 測試（M4/M5） |
-| FR-4 | 完成 → 報表 + AI 分析建議（ECharts + 一鍵轉 Revision） | ✅ 已實作 + 測試（M6） |
+| FR-4 | 完成 → 報表 + AI 分析建議（ECharts + 一鍵轉 Revision） | ✅ 已實作 + 測試（M6）；報表 **CSV/PDF 匯出 + Email** |
 | FR-5 | Web UI + Python + MySQL | ✅ API 完整 + React UI（M1–M8）；**JWT 登入 + 角色選單 + 稽核日誌 + 帳號管理（M8）** |
 | FR-6 | **RAG 查詢**（索引 + 檢索 + 引用溯源） | ✅ 已實作 + 測試 |
 
@@ -152,7 +152,7 @@ curl "localhost:8000/api/v1/rag/query-logs?page=1&page_size=20"
 - **測試計畫**（/plan）：FR-1 規格書上傳 + AI 生成測試項目；FR-2 三層結構（計畫/功能/案例）+ 版本管理
 - **自測對應**（/self-test）：FR-2a，Function + Case 綁定
 - **缺陷追蹤**（/defect）：FR-3 執行 + 自動建缺陷；Tab 內含 FR-3a 修改要求（accept/reject/complete）
-- **報表 / AI**（/report）：FR-4，完成→指標（通過率/缺陷分佈，ECharts）+ AI 建議卡片 + 一鍵轉 Revision Request
+- **報表 / AI**（/report）：FR-4，完成→指標（通過率/缺陷分佈，ECharts）+ AI 建議卡片 + 一鍵轉 Revision Request + **CSV/PDF 匯出 + Email（SMTP）**
 - **類別平台**（/platform）：M7 類別 CRUD
 - **登入**（/login）：FR-5 / M8，JWT 登入；登入後選單依角色過濾、401 自動導回登入
 - **設定**（/settings，admin）：FR-5 帳號管理（新增/改角色/停用/重設密碼，最後一個 admin 保護）＋ 稽核日誌
@@ -248,4 +248,4 @@ GitHub Actions：`.github/workflows/ci.yml` — push / PR 時跑兩個 job（`Ba
 - **P8 · 產品化/效能**：ECharts code-splitting（`echarts/core`，只註冊 bar/pie）、MySQL 連線池調校、輸入驗證 + 限流
 - **P8 · 測試/CI**：✅ 覆蓋率門檻（後端 `pytest-cov` ≥82% / 前端 vitest ratchet）+ CI coverage artifact；剩餘：前端頁面級 RTL 元件測試（拉高前端覆蓋率，現 ~9.4%）
 - **P9 · 生產加固**：CORS 白名單、HTTPS、備份策略、密鑰/Secrets 管理
-- **可選**：RAG 檢索回饋（點擊/評分）、報表排程與 email/PDF 匯出、跨團隊共用專案
+- **可選**：RAG 檢索回饋（點擊/評分）、報表排程（email/PDF 匯出已實作）、跨團隊共用專案

@@ -29,9 +29,21 @@ describe('m6Api', () => {
     await expect(m6Api.getReport(1)).rejects.toThrow(/404/);
   });
 
-  it('exportUrl points to CSV endpoint without fetching', async () => {
+  it('exportUrl points to csv/pdf endpoint without fetching', async () => {
     const f = mockFetch();
-    expect(m6Api.exportUrl(1)).toBe('/api/v1/reports/1/export');
+    expect(m6Api.exportUrl(1)).toBe('/api/v1/reports/1/export?format=csv');
+    expect(m6Api.exportUrl(1, 'pdf')).toBe('/api/v1/reports/1/export?format=pdf');
     expect(f).not.toHaveBeenCalled();
+  });
+
+  it('sendReport POSTs {to} to /reports/{id}/send', async () => {
+    const f = mockFetch();
+    f.mockResolvedValueOnce(res({ ok: true, to: 'a@b.com' }));
+    const out = await m6Api.sendReport(1, 'a@b.com');
+    expect(out.ok).toBe(true);
+    const [url, init] = f.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/api/v1/reports/1/send');
+    expect(init?.method).toBe('POST');
+    expect(JSON.parse(init!.body as string)).toEqual({ to: 'a@b.com' });
   });
 });
