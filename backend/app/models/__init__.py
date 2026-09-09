@@ -14,6 +14,7 @@ from .revision import TestPlanRevisionRequest
 from .report import AiReport
 from .user import User
 from .team import Team, TeamMember
+from .refresh_token import RefreshToken
 from .audit import AuditLog
 
 __all__ = [
@@ -51,4 +52,6 @@ __all__ = [
     "TeamMember",
     # FR-5 稽核日誌
     "AuditLog",
+    # FR-5 refresh token
+    "RefreshToken",
 ]

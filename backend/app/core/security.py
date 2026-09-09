@@ -53,9 +53,17 @@ def _now() -> int:
     return int(time.time())
 
 
-def create_token(payload: dict, expires_minutes: int = 60) -> str:
+def create_token(
+    payload: dict, expires_minutes: int = 60, token_type: str = "access"
+) -> str:
     header = {"alg": "HS256", "typ": "JWT"}
-    body = {**payload, "iat": _now(), "exp": _now() + expires_minutes * 60}
+    body = {
+        **payload,
+        "iat": _now(),
+        "exp": _now() + int(expires_minutes) * 60,
+        "type": token_type,
+        "jti": secrets.token_hex(16),
+    }
     segments = (
         f"{_b64url_encode(json.dumps(header, separators=(',', ':')).encode())}."
         f"{_b64url_encode(json.dumps(body, separators=(',', ':')).encode())}"

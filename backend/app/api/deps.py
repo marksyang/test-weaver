@@ -41,6 +41,9 @@ def get_current_user(
         payload = decode_token(token)
     except JWTError as exc:
         raise _unauthorized(f"invalid token: {exc}")
+    # refresh token 不得當 access token 使用（避免長效 token 繞過短效機制）
+    if payload.get("type") == "refresh":
+        raise _unauthorized("invalid token type (refresh not allowed here)")
     sub = payload.get("sub")
     if sub is None:
         raise _unauthorized("invalid token payload")
