@@ -13,7 +13,8 @@ from typing import AsyncIterator
 
 from fastapi import Depends, FastAPI
 
-from .api.deps import get_current_user, require_roles
+from .api.deps import get_current_user
+from .api.rbac import require_module
 from .api.audit_middleware import AuditMiddleware
 from .api.v1.rag import router as rag_router
 from .api.v1.projects import router as projects_router
@@ -61,36 +62,27 @@ def create_app() -> FastAPI:
     # 公開：認證（login / me）
     app.include_router(auth_router, prefix="/api/v1")
 
-    # 受保護（AUTH_ENABLED=false 時 no-op）
-    auth_deps = [Depends(get_current_user)]
-    app.include_router(rag_router, prefix="/api/v1", dependencies=auth_deps)
-    app.include_router(projects_router, prefix="/api/v1", dependencies=auth_deps)
-    app.include_router(test_plans_router, prefix="/api/v1", dependencies=auth_deps)
-    app.include_router(self_tests_router, prefix="/api/v1", dependencies=auth_deps)
-    app.include_router(defects_router, prefix="/api/v1", dependencies=auth_deps)
-    app.include_router(revision_router, prefix="/api/v1", dependencies=auth_deps)
-    app.include_router(reports_router, prefix="/api/v1", dependencies=auth_deps)
-    app.include_router(tasks_router, prefix="/api/v1", dependencies=auth_deps)
-    # 類別平台：額外要求 admin 角色
-    app.include_router(
-        platform_router,
-        prefix="/api/v1",
-        dependencies=auth_deps + [Depends(require_roles("admin"))],
-    )
-    # 稽核日誌：額外要求 admin 角色
-    app.include_router(
-        audit_router,
-        prefix="/api/v1",
-        dependencies=auth_deps + [Depends(require_roles("admin"))],
-    )
-    # 帳號管理：額外要求 admin 角色
-    app.include_router(
-        users_router,
-        prefix="/api/v1",
-        dependencies=auth_deps + [Depends(require_roles("admin"))],
-    )
-    # 多團隊（v1.1 T2）：team CRUD + members；端點內用 get_required_user（需真實用戶）
-    app.include_router(teams_router, prefix="/api/v1", dependencies=auth_deps)
+    # 受保護：每個模組依 rbac.ROLE_MODULES 細化角色（mirror 前端 src/auth/roles.ts）。
+    # AUTH_ENABLED=false 時 require_module 放過（no-op）；啟用後非法角色 → 403。
+    app.include_router(rag_router, prefix="/api/v1", dependencies=[Depends(require_module("rag"))])
+    # /plan 模組：專案 + 測試計畫三層結構（三種角色皆可）
+    app.include_router(projects_router, prefix="/api/v1", dependencies=[Depends(require_module("plan"))])
+    app.include_router(test_plans_router, prefix="/api/v1", dependencies=[Depends(require_module("plan"))])
+    app.include_router(self_tests_router, prefix="/api/v1", dependencies=[Depends(require_module("self_test"))])
+    # /defect 模組：缺陷 + 修改要求（三種角色皆可）
+    app.include_router(defects_router, prefix="/api/v1", dependencies=[Depends(require_module("defect"))])
+    app.include_router(revision_router, prefix="/api/v1", dependencies=[Depends(require_module("defect"))])
+    # /report 模組：admin + qa_lead（tester 不可，含「完成計畫並產生報表」）
+    app.include_router(reports_router, prefix="/api/v1", dependencies=[Depends(require_module("report"))])
+    # 跨模組 task status（Celery）：已登入即可查（依 id 查、無高敏感寫入）
+    app.include_router(tasks_router, prefix="/api/v1", dependencies=[Depends(get_current_user)])
+    # /platform 模組：admin
+    app.include_router(platform_router, prefix="/api/v1", dependencies=[Depends(require_module("platform"))])
+    # /settings 模組：稽核日誌 + 帳號管理（admin）
+    app.include_router(audit_router, prefix="/api/v1", dependencies=[Depends(require_module("settings"))])
+    app.include_router(users_router, prefix="/api/v1", dependencies=[Depends(require_module("settings"))])
+    # 多團隊（v1.1 T2）：team CRUD + members；端點內用 get_required_user（需真實用戶）+ team membership
+    app.include_router(teams_router, prefix="/api/v1", dependencies=[Depends(get_current_user)])
 
     return app
 

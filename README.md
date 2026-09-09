@@ -243,7 +243,7 @@ GitHub Actions：`.github/workflows/ci.yml` — push / PR 時跑兩個 job（`Ba
 - ✅ **v1.1 · 多團隊**：team/member + 資料隔離 + 團隊級 RBAC（owner/platform admin）+ team switcher/成員頁 + 稽核 team_id + team 刪除保護（T1–T3，見 `docs/規劃-多團隊.md`）
 
 ### 下一步（規劃中，依優先序）
-- **P7 · 治理細化**：完整 RBAC（端點級角色控制）、審批流程；✅ **JWT refresh token + 登出失效（revoke）** 已實作（access 短效 + refresh 可撤銷/旋轉，前端 401 自動刷新）
+- **P7 · 治理細化**：✅ **完整端點級 RBAC**（`rbac.py` 模組矩陣，mirror 前端 `roles.ts`）+ ✅ **JWT refresh + 登出失效**；剩餘：審批流程
 - **P7 · 稽核增強**：欄位級 before/after diff、稽核保留期與匯出
 - **P8 · 產品化/效能**：ECharts code-splitting（`echarts/core`，只註冊 bar/pie）、MySQL 連線池調校、輸入驗證 + 限流
 - **P8 · 測試/CI**：✅ 覆蓋率門檻（後端 `pytest-cov` ≥82% / 前端 vitest ratchet）+ CI coverage artifact；剩餘：前端頁面級 RTL 元件測試（拉高前端覆蓋率，現 ~9.4%）
