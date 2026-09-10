@@ -28,8 +28,8 @@ export default defineConfig({
         'src/test/**',
         'src/types/**',
       ],
-      // 防回歸的低級 ratchet floor（純頁面/元件測試屬 P8，後續會自然拉高；現 ~9.4%）
-      thresholds: { statements: 8, lines: 8 },
+      // 防回歸的 ratchet floor（含頁面級 RTL 測試，現 ~62%；留緩衝避免跨環境微變）
+      thresholds: { statements: 55, lines: 55 },
     },
   },
 });

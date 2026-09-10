@@ -51,6 +51,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-coverage
-          path: coverage/
+          # upload-artifact 的路徑相對於 repo root（非 job 的 working-directory），故用 frontend/coverage/
+          path: frontend/coverage/
       - name: Build
         run: npm run build
