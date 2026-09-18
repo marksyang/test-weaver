@@ -37,7 +37,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # 對齊本機 Node 24（GitHub Actions 已將各 action 強跑在 Node 24）
+          node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Install deps
