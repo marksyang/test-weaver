@@ -152,7 +152,7 @@ curl "localhost:8000/api/v1/rag/query-logs?page=1&page_size=20"
 - **測試計畫**（/plan）：FR-1 規格書上傳 + AI 生成測試項目；FR-2 三層結構（計畫/功能/案例）+ 版本管理
 - **自測對應**（/self-test）：FR-2a，Function + Case 綁定
 - **缺陷追蹤**（/defect）：FR-3 執行 + 自動建缺陷；Tab 內含 FR-3a 修改要求（accept/reject/complete）
-- **報表 / AI**（/report）：FR-4，完成→指標（通過率/缺陷分佈，ECharts）+ AI 建議卡片 + 一鍵轉 Revision Request + **CSV/PDF 匯出 + Email（SMTP）**
+- **報表 / AI**（/report）：FR-4，完成→指標（通過率/缺陷分佈，ECharts）+ AI 建議卡片 + 一鍵轉 Revision Request + **CSV/PDF 匯出 + Email（SMTP）+ 報表排程（Celery beat，可自動補生成）**
 - **類別平台**（/platform）：M7 類別 CRUD
 - **登入**（/login）：FR-5 / M8，JWT 登入；登入後選單依角色過濾、401 自動導回登入
 - **設定**（/settings，admin）：FR-5 帳號管理（新增/改角色/停用/重設密碼，最後一個 admin 保護）＋ 稽核日誌
@@ -178,6 +178,8 @@ npm run dev                # http://localhost:5173
 | `ACCESS_TOKEN_MINUTES` | `60` | access token 效期（分） |
 | `REFRESH_TOKEN_DAYS` | `7` | refresh token 效期（天；可登出撤銷 / 旋轉） |
 | `AUTH_ADMIN_USERNAME` / `AUTH_ADMIN_PASSWORD` | admin / admin123 | 首次啟動建立的預設 admin（可改） |
+| `REPORT_SCHEDULE_ENABLED` / `_HOUR` / `_MINUTE` | false / 7 / 0 | 報表排程（Celery beat）：定期為已完成且無報表的計畫補生成；`true` 啟用 |
+| `REPORT_EMAIL_TO`（可選） | —（空） | 排程補生成後 Email 的收件人（逗號分隔） |
 | `AUDIT_ENABLED` | `false` | 記錄登入與狀態變更稽核日誌（admin 於 `/audit/logs` 檢視） |
 | `CELERY_BROKER_URL` / `CELERY_RESULT_BACKEND` | redis `//:6379/0` , `/1` | Celery broker / 結果 |
 | `VECTOR_STORE` | `qdrant` | `qdrant` 或 `pgvector` |
@@ -248,4 +250,4 @@ GitHub Actions：`.github/workflows/ci.yml` — push / PR 時跑兩個 job（`Ba
 - **P8 · 產品化/效能**：ECharts code-splitting（✅ 已實作：`echarts/core` 瘦身 + dynamic import lazy chunk）、MySQL 連線池調校、輸入驗證 + 限流
 - **P8 · 測試/CI**：✅ 覆蓋率門檻（後端 `pytest-cov` ≥82% / 前端 vitest ratchet **≥55%**）+ CI coverage artifact + **頁面級 RTL 測試**（10 個頁面，前端覆蓋率 ~9.4% → **~62%**）
 - **P9 · 生產加固**：CORS 白名單、HTTPS、備份策略、密鑰/Secrets 管理
-- **可選**：RAG 檢索回饋（點擊/評分）、報表排程（email/PDF 匯出已實作）、跨團隊共用專案
+- **可選**：RAG 檢索回饋（點擊/評分）、跨團隊共用專案（**報表排程已實作**：Celery beat + `POST /reports/schedule/run`）

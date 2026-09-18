@@ -397,3 +397,51 @@ def send_report_email(db: Session, plan_id: int, to_addr: str) -> None:
         raise EmailNotConfigured("SMTP 未設定（請設 SMTP_HOST）")
     subject, html, pdf = build_report_email(db, plan_id, to_addr)
     _smtp_send(subject=subject, html_body=html, pdf_bytes=pdf, to_addr=to_addr)
+
+
+def run_report_schedule(db: Session, *, email_to: Optional[list] = None) -> dict:
+    """報表排程業務邏輯（離線可測）：
+
+    - 遍歷 ``status='completed'`` 的計畫，對「尚無報表」者補生成（不重複）；
+    - 若指定 ``email_to`` 且 SMTP 已設，逐一 Email；SMTP 未設 → 略過 email（報表仍生成）；
+    - 回傳 ``{"generated": [plan_id], "emailed": int, "errors": [...]}``。
+
+    每個計畫獨立 commit（局部失敗不影響其他）；ReportError 記錄後續行。
+    """
+    from sqlalchemy import select
+
+    from ..models.test_plan import TestPlan
+
+    plans = db.execute(
+        select(TestPlan).where(TestPlan.status == "completed")
+    ).scalars().all()
+
+    generated: list[int] = []
+    emailed = 0
+    errors: list[dict] = []
+    smtp_unavailable = False
+
+    for plan in plans:
+        if latest_report(db, plan.id) is not None:
+            continue  # 已有報表 → 跳過（補生成語意）
+        try:
+            generate_report(db, plan.id)
+            db.commit()
+            generated.append(plan.id)
+        except ReportError as e:
+            db.rollback()
+            errors.append({"plan_id": plan.id, "error": str(e)})
+            continue
+
+        if email_to and not smtp_unavailable:
+            for to_addr in email_to:
+                try:
+                    send_report_email(db, plan.id, to_addr)
+                    emailed += 1
+                except EmailNotConfigured:
+                    smtp_unavailable = True
+                    break
+                except ReportError as e:
+                    errors.append({"plan_id": plan.id, "email_error": str(e)})
+
+    return {"generated": generated, "emailed": emailed, "errors": errors}

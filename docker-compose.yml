@@ -70,6 +70,11 @@ services:
       AUDIT_ENABLED: ${AUDIT_ENABLED:-false}
       AUTH_ADMIN_USERNAME: ${AUTH_ADMIN_USERNAME:-admin}
       AUTH_ADMIN_PASSWORD: ${AUTH_ADMIN_PASSWORD:-admin123}
+      # 報表排程（Celery beat；預設關閉）
+      REPORT_SCHEDULE_ENABLED: ${REPORT_SCHEDULE_ENABLED:-false}
+      REPORT_SCHEDULE_HOUR: ${REPORT_SCHEDULE_HOUR:-7}
+      REPORT_SCHEDULE_MINUTE: ${REPORT_SCHEDULE_MINUTE:-0}
+      REPORT_EMAIL_TO: ${REPORT_EMAIL_TO:-}
     ports:
       - "8000:8000"
     depends_on:
@@ -98,6 +103,15 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_started
+
+  beat:
+    build: .                    # 與 api/worker 同映像，跑 Celery beat（報表排程觸發）
+    restart: unless-stopped
+    command: celery -A app.workers.celery_app.celery_app beat --loglevel=info
+    environment: *tw_env        # 共用 api/worker 的 env
+    depends_on:
+      redis:
+        condition: service_healthy
 
 volumes:
   mysql_data:
