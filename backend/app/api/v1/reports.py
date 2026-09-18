@@ -7,6 +7,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import os
 import re
 from datetime import datetime
 from typing import Optional
@@ -26,6 +27,7 @@ from ...services.report_service import (
     generate_report,
     parse_recs,
     render_report_pdf_bytes,
+    run_report_schedule,
     send_report_email,
 )
 
@@ -200,3 +202,12 @@ def send_report(plan_id: int, body: SendIn, request: Request, db: Session = Depe
     except ReportError as e:
         raise HTTPException(e.status_code, str(e))
     return {"ok": True, "to": to}
+
+
+@router.post("/reports/schedule/run")
+def run_report_schedule_endpoint(request: Request, db: Session = Depends(get_db)):
+    """手動觸發報表排程：為「已完成且無報表」的計畫補生成（依 REPORT_EMAIL_TO 選配 email）。"""
+    request.state.audit_action = "report.schedule_run"
+    raw = os.getenv("REPORT_EMAIL_TO", "")
+    email_to = [x.strip() for x in raw.split(",") if x.strip()] or None
+    return run_report_schedule(db, email_to=email_to)
